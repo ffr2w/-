@@ -43,6 +43,15 @@ select{padding:8px 12px;border-radius:8px;border:1px solid var(--line);backgroun
 .meta{color:var(--mute);font-size:.85rem;margin-top:4px}
 .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
 .btn.ghost:hover:not(:disabled){border-color:var(--acc)}
+.count{display:flex;align-items:center;gap:8px}
+.step{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:1.3rem;cursor:pointer}
+.num{width:72px;height:44px;text-align:center;font:inherit;font-size:16px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{min-width:40px;height:36px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.chip.on{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
+.step:focus-visible,.chip:focus-visible,.num:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.btn{min-height:44px}
+.ta{font-size:16px}
 </style>
 </head>
 <body>
@@ -79,7 +88,7 @@ function errMsg(e) {
 
 function App() {
   const [text, setText] = useState("");
-  const [count, setCount] = useState(5);
+  const [count, setCount] = useState("5");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [qs, setQs] = useState([]);
@@ -88,8 +97,10 @@ function App() {
 
   function reset(list, isDemo) { setQs(list); setDemo(isDemo); setPicked({}); }
 
+  const clamp = v => Math.min(30, Math.max(1, v));
   async function generate() {
     if (busy) return;
+    const n = clamp(parseInt(count) || 5); setCount(String(n));
     const src = text.trim().slice(0, 60000);
     setError("");
     if (src.length < 50) { setError("الصق نصاً لا يقل عن بضع جمل (50 حرفاً على الأقل)."); return; }
@@ -97,7 +108,7 @@ function App() {
     try {
       const sample = await claude.use("sample");
       if (!sample) throw { message: "خاصية التوليد غير متاحة في هذا العرض. افتح الصفحة من حسابك على Claude، أو جرّب الأسئلة التجريبية." };
-      const prompt = `أنت معلّم خبير في إعداد الاختبارات. ولّد ${count} أسئلة اختيار من متعدد اعتماداً على النص التالي فقط، بنفس لغة النص. لكل سؤال أربعة خيارات، واحد صحيح فقط، والبقية مشتتات معقولة، مع تفسير قصير للإجابة الصحيحة.
+      const prompt = `أنت معلّم خبير في إعداد الاختبارات. ولّد ${n} أسئلة اختيار من متعدد اعتماداً على النص التالي فقط، بنفس لغة النص. لكل سؤال أربعة خيارات، واحد صحيح فقط، والبقية مشتتات معقولة، مع تفسير قصير للإجابة الصحيحة.
 أعد JSON فقط بهذا الشكل بلا أي نص إضافي:
 {"questions":[{"question":"","options":["","","",""],"answer":0,"explanation":""}]}
 حيث answer هو رقم الخيار الصحيح (يبدأ من 0).
@@ -125,9 +136,13 @@ ${src}`;
     h("textarea", { className: "ta", rows: 9, value: text, disabled: busy, placeholder: "الصق النص هنا…", onChange: e => setText(e.target.value) }),
     h("div", { className: "meta" }, text.trim().length + " حرفاً"),
     h("div", { className: "row" },
-      h("label", null, "عدد الأسئلة: ",
-        h("select", { value: count, onChange: e => setCount(+e.target.value), disabled: busy },
-          [3, 5, 8, 10].map(n => h("option", { key: n, value: n }, n)))),
+      h("div", { className: "count" },
+        h("span", null, "عدد الأسئلة:"),
+        h("button", { className: "step", disabled: busy, "aria-label": "أنقص", onClick: () => setCount(String(clamp((parseInt(count) || 0) - 1))) }, "−"),
+        h("input", { className: "num", type: "number", inputMode: "numeric", min: 1, max: 30, value: count, disabled: busy, "aria-label": "عدد الأسئلة", onChange: e => setCount(e.target.value) }),
+        h("button", { className: "step", disabled: busy, "aria-label": "زِد", onClick: () => setCount(String(clamp((parseInt(count) || 0) + 1))) }, "+")),
+      h("div", { className: "chips" }, [5, 10, 15, 20, 30].map(v =>
+        h("button", { key: v, className: "chip" + (parseInt(count) === v ? " on" : ""), disabled: busy, onClick: () => setCount(String(v)) }, v))),
       h("button", { className: "btn", disabled: busy, onClick: generate }, busy ? "جارٍ التوليد، قد يستغرق دقيقة…" : "ولّد الأسئلة")
     ),
     h("div", { className: "row" },
